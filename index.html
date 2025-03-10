@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Appuntamenti</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Add SheetJS library for Excel file parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <ul>
+      <li><a href="#" onclick="showSection('home')">Home</a></li>
+      <li><a href="#" onclick="showSection('planning')">Planning</a></li>
+      <li><a href="#" onclick="showSection('appointments')">Appuntamenti</a></li>
+      <li><a href="#" onclick="showSection('case')">Archivio Case</a></li>
+      <li><a href="#" onclick="showSection('collaboratori')">Archivio Collaboratori</a></li>
+      <li><a href="#" onclick="showSection('dati')">Dati</a></li>
+    </ul>
+  </nav>
+  <div id="home" class="section">
+    <div class="large-text elegant-text">Wonder Where To Stay</div>
+    <div class="large-text elegant-text">Planning settimanale</div>
+    <div class="large-text elegant-text">vers. 1.0 by Federico Meliconi</div>
+  </div>
+  <div id="planning" class="section" style="display:none;">
+    <h2 id="month-display"></h2>
+    <div class="navigation">
+      <button type="button" onclick="changeWeek(-1)">Settimana Precedente</button>
+      <button type="button" onclick="changeWeek(1)">Settimana Successiva</button>
+      <button id="increaseFontSize">Aumenta dimensione caratteri</button>
+      <button id="decreaseFontSize">Riduci dimensione caratteri</button>
+      <button id="increaseAppointmentFontSizePlanning">Aumenta dimensione caratteri appuntamenti</button>
+      <button id="decreaseAppointmentFontSizePlanning">Riduci dimensione caratteri appuntamenti</button>
+    </div>
+    <div class="planning-grid">
+      <!-- Planning content will be dynamically inserted here -->
+    </div>
+  </div>
+  <div id="appointments" class="section" style="display:none;">
+    <h3 class="section-title">GESTIONE APPUNTAMENTI</h3>
+    <div class="input-row">
+      <label for="caseSelect" class="label-style">Scegli casa:</label>
+      <select id="caseSelect" title="Seleziona casa" onchange="updateName()">
+        <!-- Case options will be dynamically inserted here -->
+      </select>
+    </div>
+    <div class="input-row">
+      <label for="date" class="label-style">Data:</label>
+      <input type="date" id="date" title="Inserisci la data" placeholder="YYYY-MM-DD">
+      <label for="arrivalTime" class="label-style">Orario di arrivo:</label>
+      <input type="time" id="arrivalTime" title="Inserisci l'orario di arrivo" placeholder="HH:MM" onchange="calculateArrivalTime()">
+      <label for="arrivalMode" class="label-style">Modalità di arrivo:</label>
+      <select id="arrivalMode" title="Modalità di arrivo" onchange="calculateArrivalTime()">
+        <option value="aereo">Aereo</option>
+        <option value="treno">Treno</option>
+        <option value="macchina">Macchina</option>
+        <option value="altro">Altro</option>
+      </select>
+      <label for="transport" class="label-style">Trasporto:</label>
+      <select id="transport" title="Trasporto" onchange="calculateArrivalTime()">
+        <option value="NCC">NCC</option>
+        <option value="Taxi">Taxi</option>
+        <option value="Mezzi pubblici">Mezzi pubblici</option>
+      </select>
+      <label for="appointmentTime" class="label-style">Orario dell'appuntamento:</label>
+      <input type="time" id="appointmentTime" title="Inserisci l'orario dell'appuntamento" placeholder="HH:MM">
+    </div>
+    <div class="input-row">
+      <label for="collaboratorSelect" class="label-style">Scegli collaboratore:</label>
+      <select id="collaboratorSelect" title="Seleziona collaboratore">
+        <!-- Collaboratori options will be dynamically inserted here -->
+      </select>
+    </div>
+    <div class="input-row">
+      <label for="note" class="label-style">Note:</label>
+      <input type="text" id="note" placeholder="Note" title="Note" maxlength="30">
+      <button type="button" class="add-appointment-button" onclick="checkEarlyAppointment()">Aggiungi Appuntamento</button>
+    </div>
+    <div class="input-row">
+      <label for="filterCollaboratorSelect">Filtro per collaboratore:</label>
+      <select id="filterCollaboratorSelect" onchange="filterAppointments()">
+        <option value="">Tutti i collaboratori</option>
+        <!-- Collaboratori options will be dynamically inserted here -->
+      </select>
+      <label><input type="checkbox" id="sortAsc" onchange="sortAppointments('asc')"> Ordina cronologico crescente</label>
+      <label><input type="checkbox" id="sortDesc" onchange="sortAppointments('desc')"> Ordina cronologico decrescente</label>
+      <label><input type="checkbox" id="filterToday" onchange="filterAppointmentsToday()"> A partire dalla data odierna</label>
+      <button id="increaseAppointmentFontSizeAppointments">Aumenta dimensione caratteri appuntamenti</button>
+      <button id="decreaseAppointmentFontSizeAppointments">Riduci dimensione caratteri appuntamenti</button>
+    </div>
+    <div id="appointments-list">
+      <!-- Appointments list will be dynamically inserted here -->
+    </div>
+  </div>
+  <div id="case" class="section" style="display:none;">
+    <h3 class="section-title">ARCHIVIO CASE</h3>
+    <input type="text" id="newCase" placeholder="Nome casa" title="Nome casa">
+    <button type="button" onclick="addCase()">Aggiungi Casa</button>
+    <ul id="case-list">
+      <!-- Case list will be dynamically inserted here -->
+    </ul>
+  </div>
+  <div id="collaboratori" class="section" style="display:none;">
+    <h3 class="section-title">ARCHIVIO COLLABORATORI</h3>
+    <input type="text" id="newCollaboratore" placeholder="Nome collaboratore" title="Nome collaboratore">
+    <button type="button" onclick="addCollaboratore()">Aggiungi Collaboratore</button>
+    <ul id="collaboratori-list">
+      <!-- Collaboratori list will be dynamically inserted here -->
+    </ul>
+  </div>
+  <div id="dati" class="section" style="display:none;">
+    <h3 class="section-title">DATI</h3>
+    <button type="button" onclick="saveData()">Save</button>
+    <button type="button" onclick="loadData()">Load</button>
+    <button type="button" onclick="loadCasesFromExcel()">Carica case da excel</button>
+    <button type="button" onclick="exportDataToJSON()" class="main-action-btn">SALVA JSON</button>
+    <button type="button" onclick="importDataFromJSON()" class="main-action-btn">CARICA JSON</button>
+    <br>
+    <label for="selectFolder">Cambia percorso di salvataggio:</label>
+    <input type="file" id="selectFolder" webkitdirectory directory multiple title="Cambia percorso di salvataggio"/>
+  </div>
+  <script src="script.js"></script>
+  <script>
+    // Add this variable to store current week
+    let currentWeekDates = [];
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      loadFromLocalStorage(); // Load data from localStorage first
+      populateCaseSelect();
+      populateCollaboratorSelect();
+      setupInitialPlanning();
+      setupFontSizeButtons();
+      setupAutosave(); // Setup autosave functionality
+    });
+    
+    // Add this new function to handle font size buttons
+    function setupFontSizeButtons() {
+      let appointmentFontSize = 1; // Default font size multiplier
+      
+      // Add safety checks before adding event listeners
+      const increaseFontButtonPlanning = document.getElementById('increaseAppointmentFontSizePlanning');
+      const decreaseFontButtonPlanning = document.getElementById('decreaseAppointmentFontSizePlanning');
+      const increaseFontButtonAppointments = document.getElementById('increaseAppointmentFontSizeAppointments');
+      const decreaseFontButtonAppointments = document.getElementById('decreaseAppointmentFontSizeAppointments');
+      
+      if (increaseFontButtonPlanning) {
+        increaseFontButtonPlanning.addEventListener('click', function() {
+          appointmentFontSize += 0.1;
+          updateAppointmentFontSize(appointmentFontSize);
+        });
+      }
+      
+      if (decreaseFontButtonPlanning) {
+        decreaseFontButtonPlanning.addEventListener('click', function() {
+          appointmentFontSize = Math.max(0.5, appointmentFontSize - 0.1); // Don't go below 0.5
+          updateAppointmentFontSize(appointmentFontSize);
+        });
+      }
+
+      if (increaseFontButtonAppointments) {
+        increaseFontButtonAppointments.addEventListener('click', function() {
+          appointmentFontSize += 0.1;
+          updateAppointmentFontSize(appointmentFontSize);
+        });
+      }
+      
+      if (decreaseFontButtonAppointments) {
+        decreaseFontButtonAppointments.addEventListener('click', function() {
+          appointmentFontSize = Math.max(0.5, appointmentFontSize - 0.1); // Don't go below 0.5
+          updateAppointmentFontSize(appointmentFontSize);
+        });
+      }
+
+      // Function to update appointment font sizes
+      function updateAppointmentFontSize(size) {
+        const appointments = document.querySelectorAll('.planning-grid .appointment');
+        appointments.forEach(appointment => {
+          appointment.style.fontSize = `${size}em`;
+        });
+      }
+    }
+
+    // Add autosave functionality
+    function setupAutosave() {
+      // Set up MutationObserver to detect changes in the DOM
+      const appointmentsList = document.getElementById('appointments-list');
+      const caseList = document.getElementById('case-list');
+      const collaboratoriList = document.getElementById('collaboratori-list');
+      
+      const observerConfig = { childList: true, subtree: true, characterData: true };
+      
+      // Create observer for appointments
+      const appointmentsObserver = new MutationObserver(() => {
+        saveToLocalStorage();
+      });
+      appointmentsObserver.observe(appointmentsList, observerConfig);
+      
+      // Create observer for cases
+      const caseObserver = new MutationObserver(() => {
+        saveToLocalStorage();
+      });
+      caseObserver.observe(caseList, observerConfig);
+      
+      // Create observer for collaboratori
+      const collaboratoriObserver = new MutationObserver(() => {
+        saveToLocalStorage();
+      });
+      collaboratoriObserver.observe(collaboratoriList, observerConfig);
+    }
+
+    function saveToLocalStorage() {
+      console.log('Autosaving data to localStorage...');
+      
+      // Save appointments
+      const appointments = document.getElementById('appointments-list').innerHTML;
+      localStorage.setItem('wonderplanning_appointments', appointments);
+      
+      // Save cases
+      const cases = document.getElementById('case-list').innerHTML;
+      localStorage.setItem('wonderplanning_cases', cases);
+      
+      // Save collaboratori
+      const collaboratori = document.getElementById('collaboratori-list').innerHTML;
+      localStorage.setItem('wonderplanning_collaboratori', collaboratori);
+      
+      // Save last save timestamp
+      localStorage.setItem('wonderplanning_lastSave', new Date().toISOString());
+    }
+
+    function loadFromLocalStorage() {
+      console.log('Loading data from localStorage...');
+      
+      // Load appointments
+      const appointments = localStorage.getItem('wonderplanning_appointments');
+      if (appointments) {
+        document.getElementById('appointments-list').innerHTML = appointments;
+      }
+      
+      // Load cases
+      const cases = localStorage.getItem('wonderplanning_cases');
+      if (cases) {
+        document.getElementById('case-list').innerHTML = cases;
+      }
+      
+      // Load collaboratori
+      const collaboratori = localStorage.getItem('wonderplanning_collaboratori');
+      if (collaboratori) {
+        document.getElementById('collaboratori-list').innerHTML = collaboratori;
+      }
+      
+      // Check when data was last saved
+      const lastSave = localStorage.getItem('wonderplanning_lastSave');
+      if (lastSave) {
+        console.log('Data restored from autosave: ' + new Date(lastSave).toLocaleString());
+      }
+    }
+
+    // Modify existing save/load functions to also update localStorage
+    function saveData() {
+      // Existing save code would be here
+      saveToLocalStorage(); // Also save to localStorage
+      alert('Dati salvati con successo!');
+    }
+
+    // Override existing functions to include autosave
+    const originalAddAppointment = addAppointment;
+    addAppointment = function() {
+      originalAddAppointment();
+      saveToLocalStorage();
+    };
+
+    const originalAddCase = addCase;
+    addCase = function() {
+      originalAddCase();
+      saveToLocalStorage();
+    };
+
+    const originalEditCase = editCase;
+    editCase = function(caseId) {
+      originalEditCase(caseId);
+      saveToLocalStorage();
+    };
+
+    const originalDeleteCase = deleteCase;
+    deleteCase = function(caseId) {
+      originalDeleteCase(caseId);
+      saveToLocalStorage();
+    };
+
+    const originalAddCollaboratore = addCollaboratore;
+    addCollaboratore = function() {
+      originalAddCollaboratore();
+      saveToLocalStorage();
+    };
+
+    const originalEditCollaboratore = editCollaboratore;
+    editCollaboratore = function(collaboratoreId) {
+      originalEditCollaboratore(collaboratoreId);
+      saveToLocalStorage();
+    };
+
+    const originalDeleteCollaboratore = deleteCollaboratore;
+    deleteCollaboratore = function(collaboratoreId) {
+      originalDeleteCollaboratore(collaboratoreId);
+      saveToLocalStorage();
+    };
+    
+    // Add function to show/hide sections
+    function showSection(sectionId) {
+      // Hide all sections
+      document.querySelectorAll('.section').forEach(section => {
+        section.style.display = 'none';
+      });
+      // Show the selected section
+      document.getElementById(sectionId).style.display = 'block';
+      
+      if (sectionId === 'planning') {
+        updatePlanningGrid();
+      }
+    }
+    
+    function setupInitialPlanning() {
+      // Create a week view with all days
+      const today = new Date();
+      currentWeekDates = getWeekDates(today);
+      displayWeekDays(currentWeekDates);
+      updatePlanningGrid();
+    }
+    
+    function getWeekDates(date) {
+      const day = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      // Adjust to make Monday the first day (Monday = 1, Sunday = 0)
+      const diff = day === 0 ? date.getDate() - 6 : date.getDate() - day + 1;
+      
+      const weekDates = [];
+      for (let i = 0; i < 7; i++) {
+        const newDate = new Date(date);
+        newDate.setDate(diff + i);
+        weekDates.push(newDate);
+      }
+      return weekDates;
+    }
+    
+    function displayWeekDays(weekDates) {
+      const monthDisplay = document.getElementById('month-display');
+      
+      // Get the month name and year from the first date of the week
+      const options = { month: 'long', year: 'numeric' };
+      monthDisplay.textContent = weekDates[0].toLocaleDateString('it-IT', options);
+    }
+    
+    function changeWeek(direction) {
+      // Get the reference date (first day of the current displayed week)
+      let referenceDate;
+      
+      if (currentWeekDates && currentWeekDates.length > 0) {
+        // Use the stored first day of the current week
+        referenceDate = new Date(currentWeekDates[0]);
+      } else {
+        // Fallback to current date
+        referenceDate = new Date();
+      }
+      
+      // Move one week in the specified direction
+      referenceDate.setDate(referenceDate.getDate() + (direction * 7));
+      
+      // Calculate the new week dates
+      currentWeekDates = getWeekDates(referenceDate);
+      
+      // Update the display
+      displayWeekDays(currentWeekDates);
+      updatePlanningGrid(currentWeekDates);
+    }
+
+    function populateCaseSelect() {
+      const caseSelect = document.getElementById('caseSelect');
+      const caseList = document.getElementById('case-list');
+      caseSelect.innerHTML = ''; // Clear existing options
+      caseList.querySelectorAll('li').forEach(caseItem => {
+        const option = document.createElement('option');
+        option.value = caseItem.id;
+        option.textContent = caseItem.querySelector('span').textContent.trim(); // Get the case name
+        caseSelect.appendChild(option);
+      });
+    }
+
+    function populateCollaboratorSelect() {
+      const collaboratorSelect = document.getElementById('collaboratorSelect');
+      const collaboratorList = document.getElementById('collaboratori-list');
+      collaboratorSelect.innerHTML = ''; // Clear existing options
+      collaboratorList.querySelectorAll('li').forEach(collaboratorItem => {
+        const option = document.createElement('option');
+        option.value = collaboratorItem.id;
+        option.textContent = collaboratorItem.querySelector('span').textContent.trim(); // Get the collaborator name
+        collaboratorSelect.appendChild(option);
+      });
+    }
+
+    function checkEarlyAppointment() {
+      const appointmentTime = document.getElementById('appointmentTime').value;
+      const [hours, minutes] = appointmentTime.split(':').map(Number);
+      if (hours < 11 || (hours === 11 && minutes < 15)) {
+        if (confirm('Attenzione, arrivo prima delle 11.15!')) {
+          addAppointment();
+        }
+      } else {
+        addAppointment();
+      }
+    }
+
+    function addAppointment() {
+      const caseId = document.getElementById('caseSelect').value;
+      const caseElement = document.querySelector(`#${caseId} span`);
+      const caseName = caseElement ? caseElement.textContent.trim().toUpperCase() : '';
+      const date = document.getElementById('date').value;
+      const arrivalTime = document.getElementById('arrivalTime').value;
+      const arrivalMode = document.getElementById('arrivalMode').value;
+      const transport = document.getElementById('transport').value;
+      const appointmentTime = document.getElementById('appointmentTime').value;
+      const collaboratorId = document.getElementById('collaboratorSelect').value;
+      const collaboratorElement = document.querySelector(`#${collaboratorId} span`);
+      const collaboratorName = collaboratorElement ? collaboratorElement.textContent.trim().toUpperCase() : '';
+      const note = document.getElementById('note').value;
+
+      if (caseName && date) {
+        const appointmentList = document.getElementById('appointments-list');
+        const listItem = document.createElement('li');
+        listItem.innerHTML = `
+          <button onclick="editAppointment(this)">Modifica</button>
+          <button onclick="deleteAppointment(this)">Cancella</button>
+          <span>${date}</span> - 
+          <span style="color: blue; font-weight: bold;">${caseName}</span> - 
+          <span>${arrivalTime}</span><br> 
+          <span>${arrivalMode}</span> - 
+          <span>${transport}</span><br> 
+          <span>${appointmentTime}</span> - 
+          <span style="color: green;">${collaboratorName}</span> - 
+          <span style="color: red;">${note}</span>
+        `;
+        appointmentList.appendChild(listItem);
+        console.log("Added new appointment:", date, caseName);
+        updatePlanningGrid(); // Update the planning grid with the new appointment
+        // Optionally, save the appointment data to storage
+      } else {
+        alert('Per favore, compila i campi obbligatori: Nome casa e Giorno appuntamento.');
+      }
+    }
+
+    function editAppointment(button) {
+      const listItem = button.parentElement;
+      const spans = listItem.querySelectorAll('span');
+      document.getElementById('date').value = spans[0].textContent;
+      document.getElementById('caseSelect').value = spans[1].textContent.toLowerCase();
+      document.getElementById('arrivalTime').value = spans[2].textContent;
+      document.getElementById('arrivalMode').value = spans[3].textContent;
+      document.getElementById('transport').value = spans[4].textContent;
+      document.getElementById('appointmentTime').value = spans[5].textContent;
+      document.getElementById('collaboratorSelect').value = spans[6].textContent.toLowerCase();
+      document.getElementById('note').value = spans[7].textContent;
+      listItem.remove();
+    }
+
+    function deleteAppointment(button) {
+      if (confirm('Sei sicuro di voler cancellare questo appuntamento?')) {
+        button.parentElement.remove();
+      }
+    }
+
+    function updatePlanningGrid(weekDates) {
+      console.log("Updating planning grid");
+      const planningGrid = document.querySelector('.planning-grid');
+      if (!planningGrid) {
+        console.error("Planning grid not found");
+        return;
+      }
+      planningGrid.innerHTML = ''; // Clear existing grid
+      
+      // Use provided weekDates or the stored current week dates
+      const displayDates = weekDates || currentWeekDates || getWeekDates(new Date());
+      
+      // Store these dates for future reference
+      if (weekDates) {
+        currentWeekDates = weekDates;
+      }
+      
+      // Get all appointments
+      const appointmentsList = document.getElementById('appointments-list');
+      if (!appointmentsList) {
+        console.error("Appointments list not found");
+        return;
+      }
+      
+      const appointments = Array.from(appointmentsList.children || []);
+      console.log("Total appointments:", appointments.length);
+      
+      // Create columns for each day of the week - start with Monday
+      const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+      
+      displayDates.forEach((date, index) => {
+        const dayColumn = document.createElement('div');
+        dayColumn.classList.add('day-column');
+        
+        const formattedDate = formatDate(date);
+        const dayNumber = date.getDate();
+        
+        console.log(`Creating column for ${daysOfWeek[index]} (${formattedDate})`);
+        
+        dayColumn.innerHTML = `
+          <h3>${daysOfWeek[index]} ${dayNumber}</h3>
+          <div class="date-meta" style="display:none;">${formattedDate}</div>
+        `;
+        
+        // Add appointments for this day
+        appointments.forEach(appointment => {
+          // Improved span selection - get all spans and find the one containing a date
+          const spans = appointment.querySelectorAll('span');
+          let appointmentDate = null;
+          
+          // Try to find a span containing a date in ISO format (YYYY-MM-DD)
+          for (let i = 0; i < spans.length; i++) {
+            const spanText = spans[i].textContent.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(spanText)) {
+              appointmentDate = spanText;
+              break;
+            }
+          }
+          
+          if (!appointmentDate) {
+            console.warn("Appointment missing valid date span", appointment);
+            return;
+          }
+          
+          if (appointmentDate === formattedDate) {
+            const appointmentElement = document.createElement('div');
+            appointmentElement.classList.add('appointment');
+            
+            // Clone the appointment content but DO NOT include the buttons
+            const appointmentClone = appointment.cloneNode(true);
+            
+            // Remove all buttons from the clone
+            const buttons = appointmentClone.querySelectorAll('button');
+            buttons.forEach(button => button.remove());
+            
+            // Find and remove the date span from the clone to avoid showing duplicate dates
+            const cloneSpans = appointmentClone.querySelectorAll('span');
+            for (let i = 0; i < cloneSpans.length; i++) {
+              if (cloneSpans[i].textContent.trim() === appointmentDate) {
+                cloneSpans[i].remove();
+                break;
+              }
+            }
+            
+            appointmentElement.innerHTML = appointmentClone.innerHTML;
+            dayColumn.appendChild(appointmentElement);
+            console.log("Added appointment to", daysOfWeek[index]);
+          }
+        });
+        
+        planningGrid.appendChild(dayColumn);
+      });
+    }
+    
+    function formatDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function addCase() {
+      const caseName = document.getElementById('newCase').value;
+      if (caseName) {
+        const caseList = document.getElementById('case-list');
+        const listItem = document.createElement('li');
+        listItem.id = `case-${Date.now()}`;
+        listItem.innerHTML = `
+          <span>${caseName}</span>
+          <button onclick="editCase('${listItem.id}')">Modifica</button>
+          <button onclick="deleteCase('${listItem.id}')">Cancella</button>
+        `;
+        caseList.appendChild(listItem);
+        document.getElementById('newCase').value = ''; // Clear input field
+        populateCaseSelect(); // Update case select options
+      }
+    }
+
+    function editCase(caseId) {
+      const caseItem = document.getElementById(caseId);
+      const caseName = caseItem.querySelector('span').textContent;
+      const newCaseName = prompt('Modifica nome casa:', caseName);
+      if (newCaseName) {
+        caseItem.querySelector('span').textContent = newCaseName;
+        populateCaseSelect(); // Update case select options
+      }
+    }
+
+    function deleteCase(caseId) {
+      const caseItem = document.getElementById(caseId);
+      if (confirm('Sei sicuro di voler cancellare questa casa?')) {
+        caseItem.remove();
+        populateCaseSelect(); // Update case select options
+      }
+    }
+
+    function addCollaboratore() {
+      const collaboratoreName = document.getElementById('newCollaboratore').value;
+      if (collaboratoreName) {
+        const collaboratoriList = document.getElementById('collaboratori-list');
+        const listItem = document.createElement('li');
+        listItem.id = `collaboratore-${Date.now()}`;
+        listItem.innerHTML = `
+          <span>${collaboratoreName}</span>
+          <button onclick="editCollaboratore('${listItem.id}')">Modifica</button>
+          <button onclick="deleteCollaboratore('${listItem.id}')">Cancella</button>
+        `;
+        collaboratoriList.appendChild(listItem);
+        document.getElementById('newCollaboratore').value = ''; // Clear input field
+        populateCollaboratorSelect(); // Update collaborator select options
+      }
+    }
+
+    function editCollaboratore(collaboratoreId) {
+      const collaboratoreItem = document.getElementById(collaboratoreId);
+      const collaboratoreName = collaboratoreItem.querySelector('span').textContent;
+      const newCollaboratoreName = prompt('Modifica nome collaboratore:', collaboratoreName);
+      if (newCollaboratoreName) {
+        collaboratoreItem.querySelector('span').textContent = newCollaboratoreName;
+        populateCollaboratorSelect(); // Update collaborator select options
+      }
+    }
+
+    function deleteCollaboratore(collaboratoreId) {
+      const collaboratoreItem = document.getElementById(collaboratoreId);
+      if (confirm('Sei sicuro di voler cancellare questo collaboratore?')) {
+        collaboratoreItem.remove();
+        populateCollaboratorSelect(); // Update collaborator select options
+      }
+    }
+
+    // New function to load cases from Excel file
+    function loadCasesFromExcel() {
+      // Create a file input element
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.xlsx,.xls';
+      fileInput.style.display = 'none';
+      document.body.appendChild(fileInput);
+      
+      // Trigger the file input click
+      fileInput.click();
+      
+      // Handle file selection
+      fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) {
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // Get the first worksheet
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // Convert to JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          // Extract case names from the first column
+          const caseNames = jsonData
+            .map(row => row[0]) // Get first column
+            .filter(caseName => caseName && typeof caseName === 'string'); // Filter out empty or non-string values
+          
+          // Display confirmation with number of cases found
+          if (!confirm(`Trovati ${caseNames.length} case nel file. Vuoi aggiungerli alla lista?`)) {
+            return;
+          }
+          
+          // Add cases to the list
+          const caseList = document.getElementById('case-list');
+          caseNames.forEach(caseName => {
+            // Check if the case already exists
+            const existingCases = Array.from(caseList.querySelectorAll('span'))
+              .map(span => span.textContent.trim().toLowerCase());
+            
+            if (!existingCases.includes(caseName.toLowerCase())) {
+              const listItem = document.createElement('li');
+              listItem.id = `case-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              listItem.innerHTML = `
+                <span>${caseName}</span>
+                <button onclick="editCase('${listItem.id}')">Modifica</button>
+                <button onclick="deleteCase('${listItem.id}')">Cancella</button>
+              `;
+              caseList.appendChild(listItem);
+            }
+          });
+          
+          // Update case select options
+          populateCaseSelect();
+          
+          // Save to localStorage
+          saveToLocalStorage();
+          
+          // Clean up
+          document.body.removeChild(fileInput);
+          
+          alert(`Importate ${caseNames.length} case dal file Excel.`);
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // New function to export all data to JSON
+    function exportDataToJSON() {
+      // Collect all data
+      const data = {
+        appointments: document.getElementById('appointments-list').innerHTML,
+        cases: document.getElementById('case-list').innerHTML,
+        collaboratori: document.getElementById('collaboratori-list').innerHTML,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Convert to JSON string
+      const jsonData = JSON.stringify(data, null, 2);
+      
+      // Create a simple filename
+      const date = new Date().toISOString().slice(0, 10);
+      const filename = `wonderplanning_backup_${date}.json`;
+      
+      // Create a Blob with the JSON data
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      
+      // Create a link element
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      
+      // Append the link to the body
+      document.body.appendChild(link);
+      
+      // Programmatically click the link to trigger the download
+      link.click();
+      
+      // Remove the link from the document
+      document.body.removeChild(link);
+      
+      // Revoke the object URL after a short delay to ensure the download completes
+      setTimeout(() => URL.revokeObjectURL(link.href), 100);
+    }
+    
+    // New function to import data from JSON
+    function importDataFromJSON() {
+      // Create file input
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.json';
+      fileInput.style.display = 'none';
+      document.body.appendChild(fileInput);
+      
+      // Handle file selection
+      fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) {
+          document.body.removeChild(fileInput);
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const jsonData = JSON.parse(e.target.result);
+            
+            // Confirm before overwriting data
+            if (confirm('Questo sovrascriverà tutti i dati esistenti. Continuare?')) {
+              // Update DOM with imported data
+              if (jsonData.appointments) document.getElementById('appointments-list').innerHTML = jsonData.appointments;
+              if (jsonData.cases) document.getElementById('case-list').innerHTML = jsonData.cases;
+              if (jsonData.collaboratori) document.getElementById('collaboratori-list').innerHTML = jsonData.collaboratori;
+              
+              // Update select menus
+              populateCaseSelect();
+              populateCollaboratorSelect();
+              
+              // Update planning grid
+              updatePlanningGrid();
+              
+              // Save to localStorage
+              saveToLocalStorage();
+              
+              alert(`Dati importati con successo! Backup del: ${new Date(jsonData.timestamp).toLocaleString()}`);
+            }
+          } catch (err) {
+            alert(`Errore durante l'importazione: ${err.message}`);
+            console.error('Error importing JSON:', err);
+          } finally {
+            document.body.removeChild(fileInput);
+          }
+        };
+        
+        reader.readAsText(file);
+      });
+      
+      // Trigger file selection
+      fileInput.click();
+    }
+  </script>
+</body>
+</html>
