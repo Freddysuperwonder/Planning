@@ -63,6 +63,8 @@
         <option value="NCC">NCC</option>
         <option value="Taxi">Taxi</option>
         <option value="Mezzi pubblici">Mezzi pubblici</option>
+        <option value="Macchina">Macchina</option>
+        <option value="Altro">Altro</option> <!-- Added option -->
       </select>
       <label for="appointmentTime" class="label-style">Orario dell'appuntamento:</label>
       <input type="time" id="appointmentTime" title="Inserisci l'orario dell'appuntamento" placeholder="HH:MM">
@@ -415,28 +417,40 @@
       const caseElement = document.querySelector(`#${caseId} span`);
       const caseName = caseElement ? caseElement.textContent.trim().toUpperCase() : '';
       const date = document.getElementById('date').value;
-      const arrivalTime = document.getElementById('arrivalTime').value;
+      const arrivalTime = document.getElementById('arrivalTime').value || 'N/A';
       const arrivalMode = document.getElementById('arrivalMode').value;
       const transport = document.getElementById('transport').value;
-      const appointmentTime = document.getElementById('appointmentTime').value;
+      const appointmentTime = document.getElementById('appointmentTime').value || 'N/A';
       const collaboratorId = document.getElementById('collaboratorSelect').value;
       const collaboratorElement = document.querySelector(`#${collaboratorId} span`);
-      const collaboratorName = collaboratorElement ? collaboratorElement.textContent.trim().toUpperCase() : '';
+      const collaboratorName = collaboratorElement ? collaboratorElement.textContent.trim().toUpperCase() : 'NON ASSEGNATO';
       const note = document.getElementById('note').value;
 
       if (caseName && date) {
         const appointmentList = document.getElementById('appointments-list');
         const listItem = document.createElement('li');
+        listItem.style.backgroundColor = 'white';
+        listItem.style.border = '1px solid black';
+        listItem.style.padding = '10px';
+        listItem.style.margin = '5px 0';
+
+        let buttonColor = 'green';
+        if (arrivalTime === 'N/A' && collaboratorName === 'NON ASSEGNATO') {
+          buttonColor = 'red';
+        } else if (arrivalTime === 'N/A' || collaboratorName === 'NON ASSEGNATO') {
+          buttonColor = 'orange';
+        }
+
         listItem.innerHTML = `
-          <button onclick="editAppointment(this)">Modifica</button>
+          <button style="background-color: ${buttonColor};" onclick="editAppointment(this)">Modifica</button>
           <button onclick="deleteAppointment(this)">Cancella</button>
           <span>${date}</span> - 
           <span style="color: blue; font-weight: bold;">${caseName}</span> - 
-          <span>${arrivalTime}</span><br> 
+          <span>${arrivalTime}</span> - 
           <span>${arrivalMode}</span> - 
-          <span>${transport}</span><br> 
+          <span>${transport}</span> - 
           <span>${appointmentTime}</span> - 
-          <span style="color: green;">${collaboratorName}</span> - 
+          <span style="color: ${collaboratorName === 'NON ASSEGNATO' ? 'red; font-weight: bold;' : 'green'};">${collaboratorName}</span> - 
           <span style="color: red;">${note}</span>
         `;
         appointmentList.appendChild(listItem);
@@ -806,6 +820,50 @@
       
       // Trigger file selection
       fileInput.click();
+    }
+
+    function calculateArrivalTime() {
+      const arrivalTime = document.getElementById('arrivalTime').value;
+      const arrivalMode = document.getElementById('arrivalMode').value;
+      const transport = document.getElementById('transport').value;
+
+      if (!arrivalTime) return;
+
+      const [hours, minutes] = arrivalTime.split(':').map(Number);
+      let newHours = hours;
+      let newMinutes = minutes;
+
+      if (arrivalMode === 'aereo') {
+        if (transport === 'NCC') {
+          newHours += 1;
+        } else if (transport === 'Taxi') {
+          newHours += 1;
+          newMinutes += 15;
+        } else if (transport === 'Mezzi pubblici') {
+          newHours += 2;
+        }
+      } else if (arrivalMode === 'treno') {
+        if (transport === 'NCC' || transport === 'Taxi') {
+          newMinutes += 20;
+        } else if (transport === 'Mezzi pubblici') {
+          newMinutes += 30;
+        }
+      } else if (arrivalMode === 'macchina' && transport === 'Macchina') {
+        // No additional time needed
+      }
+
+      // Adjust minutes and hours if minutes exceed 60
+      if (newMinutes >= 60) {
+        newHours += Math.floor(newMinutes / 60);
+        newMinutes = newMinutes % 60;
+      }
+
+      // Format the new time
+      const formattedHours = String(newHours).padStart(2, '0');
+      const formattedMinutes = String(newMinutes).padStart(2, '0');
+      const newTime = `${formattedHours}:${formattedMinutes}`;
+
+      document.getElementById('appointmentTime').value = newTime;
     }
   </script>
 </body>
